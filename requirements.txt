@@ -1,0 +1,8 @@
+discord
+asyncio
+requests
+dblpy
+python-dotenv
+pymongo
+dnspython
+statcord.py
