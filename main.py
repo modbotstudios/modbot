@@ -967,8 +967,8 @@ async def log(ctx, channel: str):
     await ctx.send(embed=embed)
 
 
-@set.error
-async def set_error(ctx, error):
+@log.error
+async def log_error(ctx, error):
     if isinstance(error, commands.BadArgument):
         embed = discord.Embed(color=red)
         embed.set_author(name="modbot", url=website,
@@ -985,7 +985,7 @@ async def set_error(ctx, error):
                         inline=True)
         await ctx.send(embed=embed)
     if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(color=red)
+        embed = discord.Embed(color=red)
         embed.set_author(name="modbot", url=website,
                          icon_url=url)
         embed.add_field(name="Invalid channel", value=f"{ctx.author.mention}, please tell me a channel to set!",
