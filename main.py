@@ -952,6 +952,7 @@ async def set_error(ctx, error):
 
 
 @bot.command()
+@commands.has_permissions(administrator=True)
 async def log(ctx, channel: str):
     channel = channel.replace("<#", "")
     channel = channel.replace(">", "")
@@ -965,6 +966,31 @@ async def log(ctx, channel: str):
                     inline=True)
     await ctx.send(embed=embed)
 
+
+@set.error
+async def set_error(ctx, error):
+    if isinstance(error, commands.BadArgument):
+        embed = discord.Embed(color=red)
+        embed.set_author(name="modbot", url=website,
+                         icon_url=url)
+        embed.add_field(name="Inavlid channel",
+                        value=f"{ctx.author.mention}, please mention a real channel!", inline=True)
+        await ctx.send(embed=embed)
+    if isinstance(error, commands.MissingPermissions):
+        embed = discord.Embed(color=red)
+        embed.set_author(name="modbot", url=website,
+                         icon_url=url)
+        embed.add_field(name="Missing permissions",
+                        value=f"{ctx.author.mention}, you don't have enough permissions to disable the filter! You need the Administrator permission to use this command!",
+                        inline=True)
+        await ctx.send(embed=embed)
+    if isinstance(error, commands.MissingRequiredArgument):
+            embed = discord.Embed(color=red)
+        embed.set_author(name="modbot", url=website,
+                         icon_url=url)
+        embed.add_field(name="Invalid channel", value=f"{ctx.author.mention}, please tell me a channel to set!",
+                        inline=True)
+        await ctx.send(embed=embed)
 
 @bot.event
 async def on_message(m: discord.Message) -> None:
