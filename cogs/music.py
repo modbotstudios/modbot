@@ -1,9 +1,9 @@
-
 import asyncio
 import functools
 import itertools
 import math
 import random
+
 red = 0xF04747
 green = 0x43B581
 orange = 0xFAA61A
@@ -49,13 +49,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
     ytdl = youtube_dl.YoutubeDL(YTDL_OPTIONS)
 
-    def __init__(self, ctx: commands.Context, source: discord.FFmpegPCMAudio, *, data: dict, volume: float = 0.5):
+    def __init__(self, ctx: commands.Context, source: discord.FFmpegPCMAudio, *, data: dict, volume: float = 1.0):
         super().__init__(source, volume)
 
         self.requester = ctx.author
         self.channel = ctx.channel
         self.data = data
-
         self.uploader = data.get('uploader')
         self.uploader_url = data.get('uploader_url')
         date = data.get('upload_date')
@@ -113,7 +112,8 @@ class YTDLSource(discord.PCMVolumeTransformer):
                 except IndexError:
                     raise YTDLError('Couldn\'t retrieve any matches for `{}`'.format(webpage_url))
 
-        return cls(ctx, discord.FFmpegPCMAudio(info['url'], **cls.FFMPEG_OPTIONS), data=info)
+        return cls(ctx, discord.FFmpegPCMAudio(info['url'], **cls.FFMPEG_OPTIONS), #, executable="C:/ffmpeg.exe" on windows
+                   data=info)  ## REMOVE FFMPEG.EXE IN PRODUCTION!!! ##
 
     @staticmethod
     def parse_duration(duration: int):
@@ -188,7 +188,7 @@ class VoiceState:
         self.songs = SongQueue()
 
         self._loop = False
-        self._volume = 0.5
+        self._volume = 1.0
         self.skip_votes = set()
 
         self.audio_player = bot.loop.create_task(self.audio_player_task())
@@ -285,10 +285,9 @@ class Music(commands.Cog):
         ctx.voice_state = self.get_voice_state(ctx)
 
     async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
-        embed=discord.Embed(color=red)
+        embed = discord.Embed(color=red)
         embed.add_field(name="Ooops! Something went wrong!", value=str(error), inline=False)
         await ctx.send(embed=embed)
-        
 
     @commands.command(name='join', invoke_without_subcommand=True)
     async def _join(self, ctx: commands.Context):
@@ -331,16 +330,14 @@ class Music(commands.Cog):
 
     @commands.command(name='volume')
     async def _volume(self, ctx: commands.Context, *, volume: int):
-        """Sets the volume of the player."""
-
         if not ctx.voice_state.is_playing:
             return await ctx.send('Nothing being played at the moment.')
 
-        if 0 > volume > 100:
-            return await ctx.send('Volume must be between 0 and 100')
-
-        ctx.voice_state.current.source.volume = volume / 100
-        await ctx.send('Volume of the player set to {}%'.format(volume))
+        if volume > 200 or volume < 0:
+            return await ctx.send('Volume must be between 0 and 200')
+        else:
+            ctx.voice_state.current.source.volume = volume / 100
+            await ctx.send('Volume of the player set to {}%'.format(volume))
 
     @commands.command(name='now', aliases=['current', 'playing'])
     async def _now(self, ctx: commands.Context):
@@ -483,7 +480,7 @@ class Music(commands.Cog):
 
                 await ctx.voice_state.songs.put(song)
                 await ctx.send('Enqueued {}'.format(str(source)))
-    
+
     @_join.before_invoke
     @_play.before_invoke
     async def ensure_voice_state(self, ctx: commands.Context):
@@ -493,9 +490,13 @@ class Music(commands.Cog):
         if ctx.voice_client:
             if ctx.voice_client.channel != ctx.author.voice.channel:
                 raise commands.CommandError('Bot is already in a voice channel.')
+
     @_play.error
     async def _play_error(self, error, ctx):
         if isinstance(error, commands.CommandOnCooldown):
-            await ctx.send(f"**This command is on cooldown for " + str("%.2f" % error.retry_after) + " seconds!**") # New time string
+            await ctx.send(f"**This command is on cooldown for " + str(
+                "%.2f" % error.retry_after) + " seconds!**")  # New time string
+
+
 def setup(bot):
     bot.add_cog(Music(bot))

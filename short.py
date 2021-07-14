@@ -1,4 +1,5 @@
 from __future__ import with_statement
+
 import contextlib
 
 try:
@@ -8,12 +9,13 @@ except ImportError:
 try:
     from urllib.request import urlopen
 except ImportError:
-    from urllib2 import urlopen
+    from urllib import urlopen
 import sys
 
+
 def shorten(url):
-    request_url = ('http://tinyurl.com/api-create.php?' + 
-    urlencode({'url':url}))
+    request_url = ('https://tinyurl.com/api-create.php?' +
+                   urlencode({'url': url}))
     with contextlib.closing(urlopen(request_url)) as response:
         return response.read().decode('utf-8')
 
@@ -21,8 +23,6 @@ def shorten(url):
 def main():
     for shortyurl in map(shorten, sys.argv[1:]):
         print(shortyurl)
-
-
 
 
 if __name__ == '__main__':
