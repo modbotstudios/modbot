@@ -23,6 +23,17 @@ class Log(commands.Cog):
         self.bot = bot
 
     @commands.Cog.listener()
+    async def on_member_join(self, member):
+        a = prefixes.find_one({"_id": str(member.guild.id)})
+        chid = a["lChannel"]
+        channel = self.bot.get_channel(int(chid))
+        e = discord.Embed(color=green, timestamp=datetime.datetime.utcnow())
+        e.set_author(name=f"modbot", url=url, icon_url=url)
+        e.add_field(name=":wave:", value=f"{member.mention} ({member}) just joined.",
+                    inline=True)
+        await channel.send(embed=e)
+
+    @commands.Cog.listener()
     async def on_member_ban(self, gld, usr):
         await asyncio.sleep(0.5)
         found_entry = None
@@ -66,7 +77,8 @@ class Log(commands.Cog):
             return
         e = discord.Embed(color=green, timestamp=datetime.datetime.utcnow())
         e.set_author(name=f"modbot", url=url, icon_url=url)
-        e.add_field(name=":unlock:", value=f"{usr.mention} ({usr}) was unbanned.\nModerator: {found_entry.user.mention}",
+        e.add_field(name=":unlock:",
+                    value=f"{usr.mention} ({usr}) was unbanned.\nModerator: {found_entry.user.mention}",
                     inline=True)
         e.add_field(name="Target", value=f"<@{str(usr.id)}> ({str(usr)})", inline=True)
         e.add_field(name="Moderator", value=f"<@{str(found_entry.user.id)}> ({str(found_entry.user)})", inline=True)
@@ -83,19 +95,25 @@ class Log(commands.Cog):
                                                 after=datetime.datetime.utcnow() - datetime.timedelta(seconds=10),
                                                 oldest_first=False):  # 10 to prevent join-kick-join-leave false-positives
             if entry.created_at < datetime.datetime.utcnow() - datetime.timedelta(seconds=10):
-                continue
+                try:
+                    e = discord.Embed(color=orange, timestamp=datetime.datetime.utcnow())
+                    e.set_author(name=f"modbot", url=url, icon_url=url)
+                    e.add_field(name=":hammer:",
+                                value=f"{usr.mention} was kicked.\nModerator: {found_entry.user.mention}",
+                                inline=True)
+                    e.add_field(name="Target", value=f"<@{str(usr.id)}> ({str(usr)})", inline=True)
+                    e.add_field(name="Moderator", value=f"<@{str(found_entry.user.id)}> ({str(found_entry.user)})",
+                                inline=True)
+                    await channel.send(embed=e)
+                except:
+                        e = discord.Embed(color=red, timestamp=datetime.datetime.utcnow())
+                        e.set_author(name=f"modbot", url=url, icon_url=url)
+                        e.add_field(name=":wave:", value=f"{usr.mention} ({usr}) just left.",
+                                    inline=True)
+                        await channel.send(embed=e)
             if entry.target.id == usr.id:
                 found_entry = entry
                 break
-        if not found_entry:
-            return
-        e = discord.Embed(color=orange, timestamp=datetime.datetime.utcnow())
-        e.set_author(name=f"modbot", url=url, icon_url=url)
-        e.add_field(name=":hammer:", value=f"{usr.mention} was kicked.\nModerator: {found_entry.user.mention}",
-                    inline=True)
-        e.add_field(name="Target", value=f"<@{str(usr.id)}> ({str(usr)})", inline=True)
-        e.add_field(name="Moderator", value=f"<@{str(found_entry.user.id)}> ({str(found_entry.user)})", inline=True)
-        await channel.send(embed=e)
 
     @commands.Cog.listener()
     async def on_member_update(self, before, after):
@@ -127,7 +145,7 @@ class Log(commands.Cog):
             e.add_field(name=":lock:", value=f"{after.mention} was muted.\nModerator: {found_entry.user.mention}",
                         inline=True)
             e.add_field(name="Target", value=f"<@{str(after.id)}> ({str(after)})", inline=True)
-            e.add_field(name="Moderator", value=f"<@{str(found_entry.user)}> ({str(found_entry.user)})", inline=True)
+            e.add_field(name="Moderator", value=f"<@{str(found_entry.user.id)}> ({str(found_entry.user)})", inline=True)
             await channel.send(embed=e)
         elif muted_role not in after.roles and muted_role in before.roles:
             if after.joined_at > (datetime.datetime.utcnow() - datetime.timedelta(seconds=10)):  # join persist unmute

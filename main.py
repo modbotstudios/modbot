@@ -45,7 +45,7 @@ async def change_status():
                                                         name="/help in {} servers!".format(len(bot.guilds))))
 
 
-bot = commands.Bot(command_prefix=get_prefix, case_insensitive=True, intents=intents)
+bot = commands.AutoShardedBot(command_prefix=get_prefix, case_insensitive=True, intents=intents)
 bot.launch_time = datetime.datetime.now()
 print("Deleting default help command.....")
 bot.remove_command('help')
@@ -83,6 +83,8 @@ async def on_guild_remove(guild):
 
 
 emptylist = []
+
+
 
 
 @bot.event
@@ -160,6 +162,9 @@ async def help(ctx):
     page['1'] = discord.Embed(title='Help page 1/4', color=green)
     page['1'].add_field(name=f"`TIP`",
                         value=f"You can use our [dashboard](https://dash.modbot.studio) (dash.modbot.studio) to customize modbot easily.",
+                        inline=False)
+    page['1'].add_field(name=f"{pre}log <#channel>",
+                        value=f"Set the log channel!",
                         inline=False)
     page['1'].add_field(name=f"{pre}play",
                         value=f"Play a song! Just join a voice channel and type \"{pre}play <song name>\"! ",
@@ -967,8 +972,8 @@ async def log(ctx, channel: str):
     await ctx.send(embed=embed)
 
 
-@set.error
-async def set_error(ctx, error):
+@log.error
+async def log_error(ctx, error):
     if isinstance(error, commands.BadArgument):
         embed = discord.Embed(color=red)
         embed.set_author(name="modbot", url=website,
@@ -985,7 +990,7 @@ async def set_error(ctx, error):
                         inline=True)
         await ctx.send(embed=embed)
     if isinstance(error, commands.MissingRequiredArgument):
-            embed = discord.Embed(color=red)
+        embed = discord.Embed(color=red)
         embed.set_author(name="modbot", url=website,
                          icon_url=url)
         embed.add_field(name="Invalid channel", value=f"{ctx.author.mention}, please tell me a channel to set!",
