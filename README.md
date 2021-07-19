@@ -4,10 +4,10 @@
 </div>
 
 ### About:
-Discord bot called "Modbot" develop by Filliporomani for moderating your discord server to the next level.
+Discord bot called "modbot" developed by filliporomani for moderating your discord server to the next level.
 
 ### Developers:
-- Filliporomani `(Owner)`
+- filliporomani `(Owner)`
 - Xp-op `(Modbot Developer)`
 - Azury `(modbot.studio Developer)`
 
