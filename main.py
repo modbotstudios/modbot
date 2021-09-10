@@ -1,8 +1,9 @@
-﻿import asyncio
+import asyncio
 import datetime
 from multiprocessing.sharedctypes import Value
 import os
 import time
+from profanity_check import predict
 import discord
 import pymongo
 from discord.ext import commands
@@ -1005,26 +1006,6 @@ async def log_error(ctx, error):
                         inline=True)
         await ctx.send(embed=embed)
 
-
-
-
-badwords = open("badwords.txt").read().splitlines() # load badwords.txt
-
-def find_matchest(string: str, __iter):
-    r, l = {}, len(string)
-    for word in __iter:
-        score = 0
-        w = word[:l]
-        s = string[:len(w)]
-        for i, char in enumerate(s):
-            score += 1 if w[i] == char else -1
-        if score > 0:
-            r[word] = score
-    r = sorted(r.items(), key=lambda i: i[1])
-    return (None,-1) if not r else r[-1]
-
-
-
 @bot.event
 async def on_message(m: discord.Message) -> None:
     ctx = await bot.get_context(m)
@@ -1077,22 +1058,13 @@ async def on_message(m: discord.Message) -> None:
                                 return False
                         
                         msg = m.content.lower().split(' ')
-                        if m.author.id == bot.user.id:
-                            return
-                        
-                        await bot.process_commands(m)
-                        
-                        words: list = m.content.split(" ")
-                        
-                        matched = []
-                        
-                        for word in words:
-                            match, score = find_matchest(word, badwords)
-                            if match:
-                                if score >= 2:
-                                    matched.append((word, match))
-                        
-                        if matched or check():
+                        checkp = predict([f'{m.content}'])
+                        try:
+                            if checkp == [1]:
+                                checkp = True
+                        except ValueError:
+                            checkp = False
+                        if checkp or check():
                             css1 = ""
                             if m.author.guild_permissions.administrator or m.author.guild_permissions.manage_guild or m.author.guild_permissions.manage_messages:
                                 await m.delete()
