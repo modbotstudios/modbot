@@ -144,7 +144,7 @@ class Log(commands.Cog):
             await channel.send(embed=embed)
 
         elif before.roles != after.roles:
-            embed = discord.Embed(title="Role updates",
+            embed = discord.Embed(title=f"Role updates ({before})",
                             colour=after.colour,
                             timestamp=datetime.datetime.utcnow())            
             l3 = [x for x in before.roles if x not in after.roles]
