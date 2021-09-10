@@ -1,8 +1,9 @@
 ﻿import asyncio
 import datetime
+from multiprocessing.sharedctypes import Value
 import os
 import time
-
+from profanity_check import predict
 import discord
 import pymongo
 from discord.ext import commands
@@ -12,7 +13,7 @@ from dotenv import load_dotenv
 import short
 from keep_alive import keep_alive
 
-url = "https://cdn.discordapp.com/attachments/800381129223831592/814762083220324392/tuxpi.com.1613127751-removebg-preview.png"  # -> This is the URL of all the embeds' thumbnails.
+url = "https://cdn.discordapp.com/attachments/800381129223831592/814762083220324392/tuxpi.com.1613127751-removebg-preview.png"
 website = "https://modbot.studio"
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
@@ -40,18 +41,15 @@ def get_prefix(bot, message):
 
 @tasks.loop(seconds=300)
 async def change_status():
-    await bot.change_presence(status=discord.Status.online,
-                              activity=discord.Activity(type=discord.ActivityType.listening,
-                                                        name="/help in {} servers!".format(len(bot.guilds))))
+    await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.listening, name="/help in {} servers!".format(len(bot.guilds))))
 
 
 bot = commands.AutoShardedBot(command_prefix=get_prefix, case_insensitive=True, intents=intents)
 bot.launch_time = datetime.datetime.now()
-print("Deleting default help command.....")
 bot.remove_command('help')
-extensions = ['cogs.default', 'cogs.stats', 'cogs.music', 'cogs.log']  # 'cogs.post'
-print("Loading extensions.....")
 if __name__ == '__main__':
+    print("Loading extensions.....")
+    extensions = ['utils.default', 'utils.stats', 'utils.music', 'utils.log', 'utils.handler', 'utils.post']
     for extension in extensions:
         bot.load_extension(extension)
 print("All the extensions were loaded.")
@@ -85,12 +83,11 @@ async def on_guild_remove(guild):
 emptylist = []
 
 
-
-
 @bot.event
 async def on_guild_join(guild):
     default = {"_id": str(guild.id), "prefix": "/", "filter": True, "whitelist": emptylist, "language": 'en',
                "welcomeMessage": False, "goodbyeMessage": False,
+               "lChannel": "empty",
                "wMessage": 'Hey {{user}}, welcome to {{server}}! :wave:',
                "gMessage": 'Noooooo! {{user}} left the server! :weary_face:', "wChannel": 'empty', "gChannel": 'empty',
                "badWords": emptylist, "infractions": emptylist}
@@ -103,40 +100,29 @@ async def on_guild_join(guild):
                     value="If you need more help you can join the support server by [this link](https://discord.gg/N94NXsVNQg). To report ",
                     inline=True)
     embed.add_field(name="Donations",
-                    value="We really appreciate donation to support our developement and hosting!! Donate by [joining our support server](https://discord.gg/N94NXsVNQg) and sending \"donate\" in general, thank you!!!",
+                    value="We really appreciate donation to support our developement and hosting!! Donate by [joining our support server](https://discord.gg/N94NXsVNQg) and sending \"donate\" in #general, thank you!!!",
                     inline=False)
     embed.set_footer(text="To report any issue [join our support server](https://discord.gg/N94NXsVNQg).")
-    try:
-        await guild.text_channels[0].send(embed=embed)
-    except:
+    text_channels = guild.text_channels
+    for channel in text_channels:
         try:
-            await guild.text_channels[1].send(embed=embed)
-        except:
-            try:
-                await guild.text_channels[2].send(embed=embed)
-            except:
-                try:
-                    await guild.text_channels[3].send(embed=embed)
-                except:
-                    try:
-                        await guild.text_channels[4].send(embed=embed)
-                    except:
-                        try:
-                            await guild.text_channels[5].send(embed=embed)
-                        except:
-                            try:
-                                await guild.text_channels[6].send(embed=embed)
-                            except:
-                                pass
+            await channel.send(embed=embed)
+        except Exception as E:
+            print(E)
+            continue
+        else:
+            break
 
 
 @bot.command()
+@commands.cooldown(1, 60, commands.BucketType.user)
 async def suggest(ctx, *, suggestion):
     channel = bot.get_channel(811979160968888351)
     await channel.send(f"{ctx.author} suggested '{suggestion}'")
 
 
 @bot.command()
+@commands.cooldown(1, 1, commands.BucketType.user)
 async def uptime(ctx):
     delta_uptime = datetime.datetime.now() - bot.launch_time
     hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
@@ -152,6 +138,7 @@ async def uptime(ctx):
 
 
 @bot.command()
+@commands.cooldown(1, 10, commands.BucketType.user)
 async def help(ctx):
     page = {}
     if not ctx.message.guild:
@@ -239,9 +226,13 @@ async def help(ctx):
                         value=
                         f"Unmute an user. To use this command you have to mute the user first and type \"{pre}unmute @user_mention\".",
                         inline=False)
-    page['3'].add_field(name=f"{pre}new",
+    page['3'].add_field(name=f"{pre}text",
                         value=
-                        f"Create a new text channel. Use \"{pre}new name of the channel\". Discord willl automatically convert whitespaces into \"-\"",
+                        f"Create a new text channel. Use \"{pre}text <name of the channel>\". Discord willl automatically convert whitespaces into \"-\"",
+                        inline=False)
+    page['3'].add_field(name=f"{pre}voice",
+                        value=
+                        f"Create a new voice channel. Use \"{pre}voice <name of the channel>\".",
                         inline=False)
     page['3'].add_field(name=f"{pre}delete",
                         value=
@@ -351,6 +342,7 @@ async def help(ctx):
 ## Accept command  ##
 @bot.command(pass_context=True)
 @commands.has_permissions(send_messages=True)
+@commands.cooldown(1, 1, commands.BucketType.user)
 async def accept(message):
     user = message.message.author
     role = 'Verified'
@@ -366,6 +358,7 @@ async def accept(message):
 ## Ban command ##
 @bot.command()
 @commands.has_permissions(ban_members=True)
+@commands.cooldown(1, 1, commands.BucketType.user)
 async def ban(ctx, member: discord.Member, *, reason=None):
     check = False
     for i in member.roles:
@@ -415,6 +408,7 @@ async def ban_error(ctx, error):
 
 ## Unban command ##
 @bot.command()
+@commands.cooldown(1, 1, commands.BucketType.user)
 @commands.has_permissions(ban_members=True)
 async def unban(ctx, *, member):
     banned_users = await ctx.guild.bans()
@@ -469,6 +463,7 @@ async def unban_error(ctx, error):
 
 ## Kick command ##
 @bot.command()
+@commands.cooldown(1, 1, commands.BucketType.user)
 @commands.has_permissions(kick_members=True)
 async def kick(ctx, member: discord.Member, *, reason=None):
     check = False
@@ -519,6 +514,7 @@ async def kick_error(ctx, error):
 
 ## Info command ##
 @bot.command(aliases=['profile'])
+@commands.cooldown(1, 1, commands.BucketType.user)
 async def info(ctx, member: discord.Member):
     embed = discord.Embed(color=red)
     embed.set_author(name="modbot", url=website,
@@ -550,6 +546,7 @@ async def info_error(ctx, error):
 
 ## Short command ##
 @bot.command(name='short')
+@commands.cooldown(1, 5, commands.BucketType.user)
 async def short_url(ctx, *, url):
     a = short.shorten(str(url))
     embed = discord.Embed(color=green)
@@ -563,6 +560,7 @@ async def short_url(ctx, *, url):
 ## Clean command ##
 @bot.command(pass_context=True, aliases=['purge'])
 @commands.has_permissions(manage_messages=True)
+@commands.cooldown(1, 1, commands.BucketType.user)
 async def clean(ctx, limit1: int):
     limit = limit1 + 1
     await ctx.channel.purge(limit=limit)
@@ -603,6 +601,7 @@ async def clear_error(ctx, error):
 
 ## Mute command ##
 @bot.command()
+@commands.cooldown(1, 1, commands.BucketType.user)
 @commands.has_permissions(administrator=True)
 async def mute(ctx, member: discord.Member):
     await member.add_roles(discord.utils.get(member.guild.roles, name='Muted'))
@@ -625,6 +624,7 @@ async def mute_error(ctx, error):
 
 ## Unmute command ##
 @bot.command()
+@commands.cooldown(1, 1, commands.BucketType.user)
 @commands.has_permissions(administrator=True)
 async def unmute(ctx, user: discord.Member):
     await user.remove_roles(discord.utils.get(user.guild.roles, name='Muted'))
@@ -647,6 +647,7 @@ async def unmute_error(ctx, error):
 
 ## New text channel command ##
 @bot.command(aliases=['new_txt', 'text'])
+@commands.cooldown(1, 1, commands.BucketType.user)
 async def new_text_channel(ctx, *, name):
     guild = ctx.message.guild
     await guild.create_text_channel(name)
@@ -678,6 +679,7 @@ async def new_text_channel_error(ctx, error):
 
 ## New channel command ##
 @bot.command(aliases=['new_voice', 'voice'])
+@commands.cooldown(1, 1, commands.BucketType.user)
 async def new_voice_channel(ctx, *, name):
     guild = ctx.message.guild
     await guild.create_voice_channel(name)
@@ -709,6 +711,7 @@ async def new_voice_channel_error(ctx, error):
 
 ## Ping command ##
 @bot.command()
+@commands.cooldown(1, 1, commands.BucketType.user)
 async def ping(ctx):
     embed = discord.Embed(color=green)
     embed.set_author(name="modbot", url=website,
@@ -746,6 +749,7 @@ async def upgrade(ctx):
 
 ## Invite command ##
 @bot.command()
+@commands.cooldown(1, 1, commands.BucketType.user)
 async def invite(ctx):
     link = await ctx.channel.create_invite(max_age=0)
     embed = discord.Embed(color=green)
@@ -777,6 +781,7 @@ async def status(ctx):
 ## Prefix command ##
 @bot.command()
 @commands.has_permissions(manage_guild=True)
+@commands.cooldown(1, 10, commands.BucketType.user)
 async def prefix(ctx, prefix):
     query = {"_id": str(ctx.guild.id)}
     new = {"$set": {"prefix": str(prefix)}}
@@ -805,6 +810,7 @@ async def prefix_error(ctx, error):
 
 ## Whitelist command ##
 @bot.command()
+@commands.cooldown(1, 1, commands.BucketType.user)
 @commands.has_permissions(administrator=True)
 async def whitelist(ctx, member: discord.Member):
     query = {"_id": str(ctx.guild.id)}
@@ -846,6 +852,7 @@ async def whitelist_error(ctx, error):
 
 ## Blacklist command ##
 @bot.command()
+@commands.cooldown(1, 1, commands.BucketType.user)
 @commands.has_permissions(administrator=True)
 async def blacklist(ctx, member: discord.Member = None):
     try:
@@ -890,6 +897,7 @@ async def blacklist_error(ctx, error):
 
 ## Filter command ##
 @bot.command(name='set-swear', aliases=['filter'])
+@commands.cooldown(1, 5, commands.BucketType.user)
 @commands.has_permissions(manage_guild=True)
 async def set(ctx, *, arg: str):
     if arg.lower() == "off":
@@ -958,6 +966,7 @@ async def set_error(ctx, error):
 
 @bot.command()
 @commands.has_permissions(administrator=True)
+@commands.cooldown(1, 1, commands.BucketType.user)
 async def log(ctx, channel: str):
     channel = channel.replace("<#", "")
     channel = channel.replace(">", "")
@@ -1002,12 +1011,11 @@ async def on_message(m: discord.Message) -> None:
     ctx = await bot.get_context(m)
     a = prefixes.find_one({"_id": str(m.guild.id)})
     chid = a["lChannel"]
-
     if ctx.valid:
         return await bot.process_commands(m)
     else:
         try:
-            if m.mentions[0] == bot.user:
+            if m.content == "<@!782948156823961610>":
                 if not m.is_system():
                     if not m.author.bot:
                         if not m.guild:
@@ -1030,72 +1038,77 @@ async def on_message(m: discord.Message) -> None:
                         a = prefixes.find_one({"_id": str(m.guild.id)})
                         pre = a["prefix"]
                     if a["filter"] is True:
-                        with open('db/badwords.txt', 'r') as f:
-                            badwords = f.read()
                         if prefixes.find(
                                 {"_id": str(m.guild.id), "whitelist": {"$all": [str(m.author.id)]}}).count() > 0: return
-                        if m.content.startswith('e'): return
                         if m.attachments: return
                         if m.is_system(): return
-                        with open('db/badwords.txt', 'r') as f:
-                            words = f.read()
-                            badwords = words.split()
-                        for words in badwords:
-                            global addedword
-                            global css1
-                            list1 = m.content.lower().split(' ')
-
-                            def check():
-                                if prefixes.find({"_id": str(m.guild.id), "badWords": {"$all": [list1]}}).count() > 0:
-                                    return True
+                        global addedword
+                        global css1
+                        list1 = m.content.lower().split(' ')
+                        list1 = m.content.lower().split(' ')
+                        def check():
+                            if prefixes.find({
+                                "_id": str(m.guild.id),
+                                "badWords": {
+                                    "$all": [list1]
+                                }
+                            }).count() > 0:
+                                return True
+                            else:
+                                return False
+                        
+                        msg = m.content.lower().split(' ')
+                        checkp = predict([f'{m.content}'])
+                        try:
+                            if checkp == [1]:
+                                checkp = True
+                        except ValueError:
+                            checkp = False
+                        if checkp or check():
+                            css1 = ""
+                            if m.author.guild_permissions.administrator or m.author.guild_permissions.manage_guild or m.author.guild_permissions.manage_messages:
+                                await m.delete()
+                                await m.channel.send(
+                                    f"I can't warn you because you're an admin! Type '{pre}whitelist {m.author.mention}' to add you in the whitelist. ")
+                                pass
+                            else:
+                                await m.reply(f'You got a warn into the {m.guild.name} server {m.author.mention}!')
+                                await m.delete()
+                                if not warns.find(
+                                        {'_id': str(m.guild.id), str(m.author.id): 1}).count() > 0 and warns.find(
+                                    {'_id': str(m.guild.id), str(m.author.id): 2}).count() == 0 and warns.find(
+                                    {'_id': str(m.guild.id), str(m.author.id): 3}).count() == 0:
+                                    query = {"_id": str(m.guild.id)}
+                                    new = {"$set": {str(m.author.id): 1}}
+                                    try:
+                                        query1 = {"_id": str(m.guild.id), str(m.author.id): 1}
+                                        warns.insert_one(query1)
+                                    except:
+                                        warns.update_one(query, new)
                                 else:
-                                    return False
-
-                            msg = m.content.lower().split(' ')
-                            if words in msg or check() is True:
-                                css1 = ""
-                                if m.author.guild_permissions.administrator or m.author.guild_permissions.manage_guild or m.author.guild_permissions.manage_messages:
-                                    await m.delete()
-                                    await m.channel.send(
-                                        f"I can't warn you because you're an admin! Type '{pre}whitelist {m.author.mention}' to add you in the whitelist. ")
-                                    pass
-                                else:
-                                    await m.reply(f'You got a warn into the {m.guild.name} server {m.author.mention}!')
-                                    await m.delete()
-                                    if not warns.find(
-                                            {'_id': str(m.guild.id), str(m.author.id): 1}).count() > 0 and warns.find(
-                                        {'_id': str(m.guild.id), str(m.author.id): 2}).count() == 0 and warns.find(
-                                        {'_id': str(m.guild.id), str(m.author.id): 3}).count() == 0:
+                                    if not warns.find({'_id': str(m.guild.id),
+                                                        str(m.author.id): 2}).count() > 0 and warns.find(
+                                        {'_id': str(m.guild.id), str(m.author.id): 1}).count() == 0:
                                         query = {"_id": str(m.guild.id)}
-                                        new = {"$set": {str(m.author.id): 1}}
-                                        try:
-                                            query1 = {"_id": str(m.guild.id), str(m.author.id): 1}
-                                            warns.insert_one(query1)
-                                        except:
-                                            warns.update_one(query, new)
+                                        new = {"$set": {str(m.author.id): 2}}
+                                        warns.update_one(query, new)
                                     else:
-                                        if not warns.find({'_id': str(m.guild.id),
-                                                           str(m.author.id): 2}).count() > 0 and warns.find(
-                                            {'_id': str(m.guild.id), str(m.author.id): 1}).count() == 0:
+                                        if not warns.find(
+                                                {'_id': str(m.guild.id), str(m.author.id): 3}).count() > 0:
                                             query = {"_id": str(m.guild.id)}
-                                            new = {"$set": {str(m.author.id): 2}}
+                                            new = {"$set": {str(m.author.id): 3}}
                                             warns.update_one(query, new)
-                                        else:
-                                            if not warns.find(
-                                                    {'_id': str(m.guild.id), str(m.author.id): 3}).count() > 0:
-                                                query = {"_id": str(m.guild.id)}
-                                                new = {"$set": {str(m.author.id): 3}}
-                                                warns.update_one(query, new)
-                                                await m.author.ban()
-                                                user = bot.get_user(m.author.id)
-                                                await user.send(f'You just got banned from {m.guild.name}.')
-                                                query = {"_id": str(m.guild.id)}
-                                                delete = {"$unset": {str(m.author.id): 3}}
-                                                warns.update_one(query, delete)
+                                            await m.author.ban()
+                                            user = bot.get_user(m.author.id)
+                                            await user.send(f'You just got banned from {m.guild.name}.')
+                                            query = {"_id": str(m.guild.id)}
+                                            delete = {"$unset": {str(m.author.id): 3}}
+                                            warns.update_one(query, delete)
 
 
 ## Add word command ##
 @bot.command(aliases=['new-word', 'ban-word'])
+@commands.cooldown(1, 1, commands.BucketType.user)
 @commands.has_permissions(administrator=True)
 async def addword(ctx, *, word):
     if ctx.guild:
@@ -1132,6 +1145,7 @@ async def addword_error(ctx, error):
 
 ## REMOVE BANNED WORD ##
 @bot.command(aliases=['rm-word', 'consent-word'])
+@commands.cooldown(1, 1, commands.BucketType.user)
 @commands.has_permissions(administrator=True)
 async def rmword(ctx, *, word):
     if ctx.guild:
@@ -1167,6 +1181,7 @@ async def rmword_error(ctx, error):
 
 
 @bot.command(aliases=['warns'])
+@commands.cooldown(1, 1, commands.BucketType.user)
 async def infractions(ctx, member: discord.Member):
     if ctx.guild:
         try:
@@ -1208,6 +1223,7 @@ async def infractions_error(ctx, error):
 
 @bot.command()
 @commands.has_permissions(administrator=True)
+@commands.cooldown(1, 1, commands.BucketType.user)
 async def clearall(ctx, member: discord.Member):
     if ctx.guild:
         try:
@@ -1290,4 +1306,4 @@ def run(**kwargs):
         bot.run(kwargs["auth"])
 
 
-run(webserver=True, auth=token)
+run(webserver=False, auth=token)

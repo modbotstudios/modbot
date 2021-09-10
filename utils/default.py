@@ -46,18 +46,6 @@ class OwnerCog(commands.Cog):
         else:
             await ctx.send('**`SUCCESS`**')
 
-    @commands.command(name='names', aliases=['guilds'], hidden=True)
-    @commands.is_owner()
-    async def guilds(self, ctx):
-        activeservers = self.bot.guilds
-        for guild in activeservers:
-            user = self.bot.get_user(776713998682292274)
-            await user.send(guild.name)
-
-    @commands.command(name='servers', hidden=True)
-    @commands.is_owner()
-    async def servers(self, ctx):
-        await ctx.send(f"I'm in {len(self.bot.guilds)} servers!")
 
 
 def setup(bot):

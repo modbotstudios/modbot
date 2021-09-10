@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 red = 0xF04747
 green = 0x43B581
 orange = 0xFAA61A
-url = "https://cdn.discordapp.com/attachments/800381129223831592/814762083220324392/tuxpi.com.1613127751-removebg-preview.png"  # -> This is the URL of all the embeds' thumbnails.
+# -> This is the URL of all the embeds' thumbnails.
+url = "https://cdn.discordapp.com/attachments/800381129223831592/814762083220324392/tuxpi.com.1613127751-removebg-preview.png"
 website = "https://modbot.studio"
 load_dotenv("../.env")
 client = pymongo.MongoClient(str(os.getenv("URL")))
@@ -54,8 +55,10 @@ class Log(commands.Cog):
         e.set_author(name=f"modbot", url=url, icon_url=url)
         e.add_field(name=":lock:", value=f"{usr.mention} ({usr}) was banned.\nModerator: {found_entry.user.mention}",
                     inline=True)
-        e.add_field(name="Target", value=f"<@{str(usr.id)}> ({str(usr)})", inline=True)
-        e.add_field(name="Moderator", value=f"<@{str(found_entry.user.id)}> ({str(found_entry.user)})", inline=True)
+        e.add_field(name="Target",
+                    value=f"<@{str(usr.id)}> ({str(usr)})", inline=True)
+        e.add_field(
+            name="Moderator", value=f"<@{str(found_entry.user.id)}> ({str(found_entry.user)})", inline=True)
         await channel.send(embed=e)
 
     @commands.Cog.listener()
@@ -80,8 +83,10 @@ class Log(commands.Cog):
         e.add_field(name=":unlock:",
                     value=f"{usr.mention} ({usr}) was unbanned.\nModerator: {found_entry.user.mention}",
                     inline=True)
-        e.add_field(name="Target", value=f"<@{str(usr.id)}> ({str(usr)})", inline=True)
-        e.add_field(name="Moderator", value=f"<@{str(found_entry.user.id)}> ({str(found_entry.user)})", inline=True)
+        e.add_field(name="Target",
+                    value=f"<@{str(usr.id)}> ({str(usr)})", inline=True)
+        e.add_field(
+            name="Moderator", value=f"<@{str(found_entry.user.id)}> ({str(found_entry.user)})", inline=True)
         await channel.send(embed=e)
 
     @commands.Cog.listener()
@@ -96,17 +101,20 @@ class Log(commands.Cog):
                                                 oldest_first=False):  # 10 to prevent join-kick-join-leave false-positives
             if entry.created_at < datetime.datetime.utcnow() - datetime.timedelta(seconds=10):
                 try:
-                    e = discord.Embed(color=orange, timestamp=datetime.datetime.utcnow())
+                    e = discord.Embed(
+                        color=orange, timestamp=datetime.datetime.utcnow())
                     e.set_author(name=f"modbot", url=url, icon_url=url)
                     e.add_field(name=":hammer:",
                                 value=f"{usr.mention} was kicked.\nModerator: {found_entry.user.mention}",
                                 inline=True)
-                    e.add_field(name="Target", value=f"<@{str(usr.id)}> ({str(usr)})", inline=True)
+                    e.add_field(
+                        name="Target", value=f"<@{str(usr.id)}> ({str(usr)})", inline=True)
                     e.add_field(name="Moderator", value=f"<@{str(found_entry.user.id)}> ({str(found_entry.user)})",
                                 inline=True)
                     await channel.send(embed=e)
                 except:
-                        e = discord.Embed(color=red, timestamp=datetime.datetime.utcnow())
+                        e = discord.Embed(
+                            color=red, timestamp=datetime.datetime.utcnow())
                         e.set_author(name=f"modbot", url=url, icon_url=url)
                         e.add_field(name=":wave:", value=f"{usr.mention} ({usr}) just left.",
                                     inline=True)
@@ -117,9 +125,46 @@ class Log(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_update(self, before, after):
-        a = prefixes.find_one({"_id": str(before.guild.id)})
-        chid = a["lChannel"]
-        channel = self.bot.get_channel(int(chid))
+        try:
+            a = prefixes.find_one({"_id": str(before.guild.id)})
+            chid = a["lChannel"]
+            channel = self.bot.get_channel(int(chid))
+        except:
+            pass
+        if before.display_name != after.display_name:
+            embed = discord.Embed(title="Nickname change",
+                            colour=after.colour,
+                            timestamp=datetime.datetime.utcnow())
+            fields = [("Before", before.display_name, False),
+                        ("After", after.display_name, False)]
+
+            for name, value, inline in fields:
+                embed.add_field(name=name, value=value, inline=inline)
+
+            await channel.send(embed=embed)
+
+        elif before.roles != after.roles:
+            embed = discord.Embed(title="Role updates",
+                            colour=after.colour,
+                            timestamp=datetime.datetime.utcnow())            
+            l3 = [x for x in before.roles if x not in after.roles]
+            removed = True
+            if l3 == []:
+                l3 = [x for x in after.roles if x not in before.roles]
+                removed = False
+            if removed is True:
+                removed = "Removed"
+            else:
+                removed = "Added"
+
+            value = (r.mention for r in l3)
+            x = 0
+            for r in l3:
+                x = r.mention
+            
+            embed.add_field(name=f"{removed} role:", value=x, inline=False)
+
+            await channel.send(embed=embed)
         if before.roles == after.roles:
             return
         muted_role = discord.utils.get(after.guild.roles, name="Muted")
@@ -170,6 +215,9 @@ class Log(commands.Cog):
             e.add_field(name="Moderator", value=f"<@{str(found_entry.user.mention)}> ({str(found_entry.user)})",
                         inline=True)
             await channel.send(embed=e)
+
+
+
 
 
 def setup(bot):
