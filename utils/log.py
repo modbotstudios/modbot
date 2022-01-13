@@ -2,9 +2,9 @@ import asyncio
 import datetime
 import os
 
-import discord
+import nextcord as discord
 import pymongo
-from discord.ext import commands
+from nextcord.ext import commands
 from dotenv import load_dotenv
 
 red = 0xF04747
@@ -44,8 +44,6 @@ class Log(commands.Cog):
         async for entry in gld.audit_logs(limit=50, action=discord.AuditLogAction.ban,
                                           after=datetime.datetime.utcnow() - datetime.timedelta(seconds=15),
                                           oldest_first=False):
-            if entry.created_at < datetime.datetime.utcnow() - datetime.timedelta(seconds=10):
-                continue
             if entry.target.id == usr.id:
                 found_entry = entry
                 break
@@ -53,7 +51,7 @@ class Log(commands.Cog):
             return
         e = discord.Embed(color=red, timestamp=datetime.datetime.utcnow())
         e.set_author(name=f"modbot", url=url, icon_url=url)
-        e.add_field(name=":lock:", value=f"{usr.mention} ({usr}) was banned.\nModerator: {found_entry.user.mention}",
+        e.add_field(name=":lock:", value=f"{usr.mention} ({usr}) was banned.",
                     inline=True)
         e.add_field(name="Target",
                     value=f"<@{str(usr.id)}> ({str(usr)})", inline=True)
@@ -71,8 +69,6 @@ class Log(commands.Cog):
         async for entry in gld.audit_logs(limit=50, action=discord.AuditLogAction.unban,
                                           after=datetime.datetime.utcnow() - datetime.timedelta(seconds=15),
                                           oldest_first=False):
-            if entry.created_at < datetime.datetime.utcnow() - datetime.timedelta(seconds=10):
-                continue
             if entry.target.id == usr.id:
                 found_entry = entry
                 break
@@ -98,30 +94,30 @@ class Log(commands.Cog):
         found_entry = None
         async for entry in usr.guild.audit_logs(limit=50, action=discord.AuditLogAction.kick,
                                                 after=datetime.datetime.utcnow() - datetime.timedelta(seconds=10),
-                                                oldest_first=False):  # 10 to prevent join-kick-join-leave false-positives
-            if entry.created_at < datetime.datetime.utcnow() - datetime.timedelta(seconds=10):
-                try:
-                    e = discord.Embed(
-                        color=orange, timestamp=datetime.datetime.utcnow())
-                    e.set_author(name=f"modbot", url=url, icon_url=url)
-                    e.add_field(name=":hammer:",
-                                value=f"{usr.mention} was kicked.\nModerator: {found_entry.user.mention}",
-                                inline=True)
-                    e.add_field(
-                        name="Target", value=f"<@{str(usr.id)}> ({str(usr)})", inline=True)
-                    e.add_field(name="Moderator", value=f"<@{str(found_entry.user.id)}> ({str(found_entry.user)})",
-                                inline=True)
-                    await channel.send(embed=e)
-                except:
-                        e = discord.Embed(
-                            color=red, timestamp=datetime.datetime.utcnow())
-                        e.set_author(name=f"modbot", url=url, icon_url=url)
-                        e.add_field(name=":wave:", value=f"{usr.mention} ({usr}) just left.",
-                                    inline=True)
-                        await channel.send(embed=e)
+                                                oldest_first=False): 
             if entry.target.id == usr.id:
                 found_entry = entry
                 break
+            try:
+                e = discord.Embed(
+                    color=orange, timestamp=datetime.datetime.utcnow())
+                e.set_author(name=f"modbot", url=url, icon_url=url)
+                e.add_field(name=":hammer:",
+                            value=f"{usr.mention} was kicked.\nModerator: {found_entry.user.mention}",
+                            inline=True)
+                e.add_field(
+                    name="Target", value=f"<@{str(usr.id)}> ({str(usr)})", inline=True)
+                e.add_field(name="Moderator", value=f"<@{str(found_entry.user.id)}> ({str(found_entry.user)})",
+                            inline=True)
+                await channel.send(embed=e)
+            except:
+                    e = discord.Embed(
+                        color=red, timestamp=datetime.datetime.utcnow())
+                    e.set_author(name=f"modbot", url=url, icon_url=url)
+                    e.add_field(name=":wave:", value=f"{usr.mention} ({usr}) just left.",
+                                inline=True)
+                    await channel.send(embed=e)
+            
 
     @commands.Cog.listener()
     async def on_member_update(self, before, after):
@@ -140,7 +136,12 @@ class Log(commands.Cog):
 
             for name, value, inline in fields:
                 embed.add_field(name=name, value=value, inline=inline)
-
+            try:
+                a = prefixes.find_one({"_id": str(before.guild.id)})
+                chid = a["lChannel"]
+                channel = self.bot.get_channel(int(chid))
+            except:
+                pass
             await channel.send(embed=embed)
 
         elif before.roles != after.roles:
@@ -163,7 +164,18 @@ class Log(commands.Cog):
                 x = r.mention
             
             embed.add_field(name=f"{removed} role:", value=x, inline=False)
-
+            try:
+                a = prefixes.find_one({"_id": str(before.guild.id)})
+                chid = a["lChannel"]
+                channel = self.bot.get_channel(int(chid))
+            except:
+                pass
+            try:
+                a = prefixes.find_one({"_id": str(before.guild.id)})
+                chid = a["lChannel"]
+                channel = self.bot.get_channel(int(chid))
+            except:
+                pass
             await channel.send(embed=embed)
         if before.roles == after.roles:
             return
@@ -171,15 +183,11 @@ class Log(commands.Cog):
         if not muted_role:
             return
         if muted_role in after.roles and not muted_role in before.roles:
-            if after.joined_at > (datetime.datetime.utcnow() - datetime.timedelta(seconds=10)):  # join persist mute
-                return
             await asyncio.sleep(0.5)  # wait for audit log
             found_entry = None
             async for entry in after.guild.audit_logs(limit=50, action=discord.AuditLogAction.member_role_update,
                                                       after=datetime.datetime.utcnow() - datetime.timedelta(seconds=15),
                                                       oldest_first=False):
-                if entry.created_at < datetime.datetime.utcnow() - datetime.timedelta(seconds=10):
-                    continue
                 if entry.target.id == after.id and not muted_role in entry.before.roles and muted_role in entry.after.roles:
                     found_entry = entry
                     break
@@ -187,10 +195,16 @@ class Log(commands.Cog):
                 return
             e = discord.Embed(color=orange, timestamp=datetime.datetime.utcnow())
             e.set_author(name=f"modbot", url=url, icon_url=url)
-            e.add_field(name=":lock:", value=f"{after.mention} was muted.\nModerator: {found_entry.user.mention}",
+            e.add_field(name=":lock:", value=f"{after.mention} was muted.",
                         inline=True)
             e.add_field(name="Target", value=f"<@{str(after.id)}> ({str(after)})", inline=True)
             e.add_field(name="Moderator", value=f"<@{str(found_entry.user.id)}> ({str(found_entry.user)})", inline=True)
+            try:
+                a = prefixes.find_one({"_id": str(before.guild.id)})
+                chid = a["lChannel"]
+                channel = self.bot.get_channel(int(chid))
+            except:
+                pass
             await channel.send(embed=e)
         elif muted_role not in after.roles and muted_role in before.roles:
             if after.joined_at > (datetime.datetime.utcnow() - datetime.timedelta(seconds=10)):  # join persist unmute
@@ -200,8 +214,7 @@ class Log(commands.Cog):
             async for entry in after.guild.audit_logs(limit=50, action=discord.AuditLogAction.member_role_update,
                                                       after=datetime.datetime.utcnow() - datetime.timedelta(seconds=15),
                                                       oldest_first=False):
-                if entry.created_at < datetime.datetime.utcnow() - datetime.timedelta(seconds=10):
-                    continue
+
                 if entry.target.id == after.id and muted_role in entry.before.roles and not muted_role in entry.after.roles:
                     found_entry = entry
                     break
@@ -209,10 +222,10 @@ class Log(commands.Cog):
                 return
             e = discord.Embed(color=green, timestamp=datetime.datetime.utcnow())
             e.set_author(name=f"modbot", url=url, icon_url=url)
-            e.add_field(name=":unlock:", value=f"{after.mention} was unmuted.\nModerator: {found_entry.user.mention}",
+            e.add_field(name=":unlock:", value=f"{after.mention} was unmuted.",
                         inline=True)
             e.add_field(name="Target", value=f"<@{str(after.id)}> ({str(after)})", inline=True)
-            e.add_field(name="Moderator", value=f"<@{str(found_entry.user.mention)}> ({str(found_entry.user)})",
+            e.add_field(name="Moderator", value=f"<@{str(found_entry.user.id)}> ({str(found_entry.user)})",
                         inline=True)
             await channel.send(embed=e)
 
