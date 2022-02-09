@@ -1,10 +1,10 @@
 <div align="center">
-  <h1>Modbot</h1>
-  <h2>Powerful moderation bot for your discord server</h2>
+  <h1>modbot</h1>
+  <h2>Powerful moderation bot for your Discord server</h2>
 </div>
 
 ### About:
-Discord bot called "modbot" developed by filliporomani for moderating your discord server to the next level.
+Discord bot called "modbot" developed by filipporomani for moderating your discord server to the next level.
 
 ### Developers:
 - filliporomani `(Owner)`
