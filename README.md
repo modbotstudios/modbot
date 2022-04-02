@@ -134,5 +134,5 @@ Discord bot called "modbot" developed by filipporomani for moderating your disco
 	Check the bot's ping
 
 ### QuickLink:
-- [Modbot Official Website](https://modbot.studio)
+- [Modbot Official Website](https://modbot.filipporomani.it)
 - [Modbot Official Discord Server](https://discord.gg/ffQPwrrG)
